@@ -1,4 +1,8 @@
 
+from selectors import DefaultSelector,EVENT_WRITE
+
+selector = DefaultSelector()
+
 def fetch(url):
 	sock = socket.socket()
 	sock.setblocking(False)
@@ -7,18 +11,11 @@ def fetch(url):
 	except BlockingIOError:
 		pass
 
-	request = 'Get {} HTTP/1.0\r\nHost: xkcd.com\r\n\r\n'.format(url)
-	encoded = request.encode('ascii')
+def connected():
+	selector.unregister(sock.fileno())
+	print('connected')
 
-	while True:
-		try:
-			sock.send(encoded)
-			break
-		except OSError as e:
-			pass
-
-	print('sent')
-
+selector.register(sock.fileno(),EVENT_WRITE,connected)
 
 if __name__ == '__main__':
 	fetch()
