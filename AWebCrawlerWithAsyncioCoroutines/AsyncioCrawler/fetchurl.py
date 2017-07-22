@@ -11,21 +11,29 @@ import time
 
 seen_urls = set(['/'])
 lock = Lock()
+idlethreadnum = 0
 
 class Fethcher(Thread):
-	def __init__(self,tasks):
+	def __init__(self,tasks,name):
 		Thread.__init__(self)
 		self.tasks = tasks
 		self.deamon = True
-
+		#self.idlethreadnum = 0
+		self.name = name
 		self.start()
 
 	def run(self):
+		global idlethreadnum
 		while True:
+			
 			url = self.tasks.get()
 			print(url)
-			sock = socket.socket()
-			sock.connect(('localhost',3000))
+			sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+			try:
+				sock.connect(('xkcd.com',80))
+			except:
+				print('connect error happend')
+
 			get = 'Get {} HTTP/1.0\r\nHost: localhost\r\n\r\n'.format(url)
 			sock.send(get.encode('ascii'))
 			response = b''
@@ -35,7 +43,7 @@ class Fethcher(Thread):
 				response += chunk
 				chunk = sock.recv(4096)
 
-
+			print('response:',response)
 			links = self.parse_links(url,response)
 
 			lock.acquire()
@@ -45,6 +53,8 @@ class Fethcher(Thread):
 			lock.release()
 
 			self.tasks.task_done()
+		self.tasks.task_done()
+		print("exit run func")
 
 	def parse_links(self,fetched_url,response):
 		if not response:
@@ -78,7 +88,7 @@ class Fethcher(Thread):
 
 	def _is_html(self,response):
 		head,body = response.split(b'\r\n\r\n',1)
-		headers = dict(h.split(': ') for h in head.decode().split('\r\n')[1,:])
+		headers = dict(h.split(': ') for h in head.decode().split('\r\n')[1:])
 		return headers.get('Content-Type','').startswith('text/html')
 
 class ThreadPool:
@@ -86,7 +96,7 @@ class ThreadPool:
 	def __init__(self, num_thread):
 		self.tasks = Queue()
 		for _ in range(num_thread):
-			Fethcher(self.tasks)
+			Fethcher(self.tasks,_)
 
 	def add_task(self,url):
 		self.tasks.put(url)
